@@ -700,17 +700,17 @@ function downloadPdf(person){
   const marginRight = 14;
 
   doc.setFillColor(...PDF_DARK);
-  doc.rect(0, 0, pageWidth, 34, 'F');
+  doc.rect(0, 0, pageWidth, 24, 'F');
   doc.setTextColor(...PDF_ACCENT_2);
-  doc.setFontSize(10);
+  doc.setFontSize(8);
   doc.setFont(undefined, 'bold');
-  doc.text('ZION 2026 · MINHA ESCALA', marginLeft, 14);
+  doc.text('ZION 2026 - MINHA ESCALA', marginLeft, 9);
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(20);
-  doc.text(person.name, marginLeft, 26);
+  doc.setFontSize(15);
+  doc.text(person.name, marginLeft, 18);
   doc.setFont(undefined, 'normal');
 
-  let y = 44;
+  let y = 33;
   const dayKeys = DAY_ORDER.filter(d => person.schedule[d] && person.schedule[d].length);
 
   if(!dayKeys.length){
@@ -722,16 +722,16 @@ function downloadPdf(person){
   dayKeys.forEach(day=>{
     if(y > 270){ doc.addPage(); y = 20; }
     doc.setTextColor(...PDF_ACCENT);
-    doc.setFontSize(13);
+    doc.setFontSize(11);
     doc.setFont(undefined, 'bold');
     doc.text(day, marginLeft, y);
     doc.setFont(undefined, 'normal');
-    y += 4;
+    y += 3;
 
     const rows = person.schedule[day].map(s => [
-      `${s.start} → ${s.end}`,
+      `${s.start} - ${s.end}`,
       s.activity || 'área a definir',
-      leadersFor(s.activity) || '—',
+      leadersFor(s.activity) || '-',
     ]);
 
     doc.autoTable({
@@ -740,21 +740,21 @@ function downloadPdf(person){
       body: rows,
       theme: 'grid',
       margin: { left: marginLeft, right: marginRight },
-      styles: { fontSize: 10, cellPadding: 4, textColor: PDF_TEXT, lineColor: [225, 220, 210], lineWidth: 0.2 },
-      headStyles: { fillColor: PDF_ACCENT, textColor: 255, fontStyle: 'bold' },
+      styles: { fontSize: 9, cellPadding: 2.5, textColor: PDF_TEXT, lineColor: [225, 220, 210], lineWidth: 0.2 },
+      headStyles: { fontSize: 9, fillColor: PDF_ACCENT, textColor: 255, fontStyle: 'bold' },
       alternateRowStyles: { fillColor: PDF_ROW_ALT },
-      columnStyles: { 0: { cellWidth: 32, fontStyle: 'bold' } },
+      columnStyles: { 0: { cellWidth: 26, fontStyle: 'bold' } },
     });
 
-    y = doc.lastAutoTable.finalY + 10;
+    y = doc.lastAutoTable.finalY + 8;
   });
 
   const pageCount = doc.internal.getNumberOfPages();
   for(let p = 1; p <= pageCount; p++){
     doc.setPage(p);
-    doc.setFontSize(8);
+    doc.setFontSize(7);
     doc.setTextColor(...PDF_FAINT);
-    doc.text('Escala gerada a partir da planilha oficial · zionescala.vercel.app', marginLeft, 291);
+    doc.text('Escala gerada a partir da planilha oficial - zionescala.vercel.app', marginLeft, 291);
   }
 
   doc.save(`escala-${norm(person.name).replace(/\s+/g,'-')}.pdf`);
