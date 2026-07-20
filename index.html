@@ -473,6 +473,7 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script>
 const SUPABASE_URL = 'https://ahqgxacshklspbygnvxy.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFocWd4YWNzaGtsc3BieWdudnh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1NDgyOTEsImV4cCI6MjEwMDEyNDI5MX0.Vip9Sqh5DRCd-5JsrQZ91B3X_NJxtfGAm3e-bmmE2jw';
@@ -684,48 +685,77 @@ function renderResult(person){
   document.getElementById('pdfBtn').addEventListener('click', ()=> downloadPdf(person));
 }
 
+const PDF_ACCENT = [255, 106, 61];
+const PDF_ACCENT_2 = [255, 200, 87];
+const PDF_DARK = [21, 17, 43];
+const PDF_TEXT = [30, 30, 30];
+const PDF_FAINT = [130, 130, 130];
+const PDF_ROW_ALT = [250, 246, 240];
+
 function downloadPdf(person){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   const marginLeft = 14;
-  const maxLineWidth = pageWidth - marginLeft*2;
-  let y = 20;
+  const marginRight = 14;
 
-  doc.setFontSize(18);
-  doc.text(person.name, marginLeft, y);
-  y += 7;
+  doc.setFillColor(...PDF_DARK);
+  doc.rect(0, 0, pageWidth, 34, 'F');
+  doc.setTextColor(...PDF_ACCENT_2);
   doc.setFontSize(10);
-  doc.setTextColor(120);
-  doc.text('ZION 2026 - Minha escala', marginLeft, y);
-  doc.setTextColor(0);
-  y += 10;
+  doc.setFont(undefined, 'bold');
+  doc.text('ZION 2026 · MINHA ESCALA', marginLeft, 14);
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(20);
+  doc.text(person.name, marginLeft, 26);
+  doc.setFont(undefined, 'normal');
 
+  let y = 44;
   const dayKeys = DAY_ORDER.filter(d => person.schedule[d] && person.schedule[d].length);
 
   if(!dayKeys.length){
+    doc.setTextColor(...PDF_TEXT);
     doc.setFontSize(11);
     doc.text('Seu horário ainda não foi definido na escala.', marginLeft, y);
   }
 
   dayKeys.forEach(day=>{
-    if(y > 275){ doc.addPage(); y = 20; }
+    if(y > 270){ doc.addPage(); y = 20; }
+    doc.setTextColor(...PDF_ACCENT);
     doc.setFontSize(13);
+    doc.setFont(undefined, 'bold');
     doc.text(day, marginLeft, y);
-    y += 7;
+    doc.setFont(undefined, 'normal');
+    y += 4;
 
-    person.schedule[day].forEach(s=>{
-      const leader = leadersFor(s.activity);
-      const activity = s.activity || 'área a definir';
-      const line = `${s.start} -> ${s.end}   ${activity}` + (leader ? `  (Líder: ${leader})` : '');
-      const wrapped = doc.splitTextToSize(line, maxLineWidth - 4);
-      doc.setFontSize(10.5);
-      if(y + wrapped.length*5 > 285){ doc.addPage(); y = 20; }
-      doc.text(wrapped, marginLeft + 4, y);
-      y += wrapped.length*5 + 2;
+    const rows = person.schedule[day].map(s => [
+      `${s.start} → ${s.end}`,
+      s.activity || 'área a definir',
+      leadersFor(s.activity) || '—',
+    ]);
+
+    doc.autoTable({
+      startY: y,
+      head: [['Horário', 'Atividade', 'Líder']],
+      body: rows,
+      theme: 'grid',
+      margin: { left: marginLeft, right: marginRight },
+      styles: { fontSize: 10, cellPadding: 4, textColor: PDF_TEXT, lineColor: [225, 220, 210], lineWidth: 0.2 },
+      headStyles: { fillColor: PDF_ACCENT, textColor: 255, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: PDF_ROW_ALT },
+      columnStyles: { 0: { cellWidth: 32, fontStyle: 'bold' } },
     });
-    y += 5;
+
+    y = doc.lastAutoTable.finalY + 10;
   });
+
+  const pageCount = doc.internal.getNumberOfPages();
+  for(let p = 1; p <= pageCount; p++){
+    doc.setPage(p);
+    doc.setFontSize(8);
+    doc.setTextColor(...PDF_FAINT);
+    doc.text('Escala gerada a partir da planilha oficial · zionescala.vercel.app', marginLeft, 291);
+  }
 
   doc.save(`escala-${norm(person.name).replace(/\s+/g,'-')}.pdf`);
 }
