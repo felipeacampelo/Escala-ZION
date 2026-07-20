@@ -439,21 +439,6 @@
   @media (prefers-reduced-motion: reduce){
     .eyebrow .dot, .live-dot, .status-spinner{ animation:none; }
   }
-
-  /* ---------- Print ---------- */
-  @media print{
-    :root{
-      --bg:#ffffff; --bg-2:#f4f4f4; --surface:#ffffff; --surface-2:#f0f0f0;
-      --line: rgba(0,0,0,0.12); --line-strong: rgba(0,0,0,0.2);
-      --text:#151515; --text-dim:#3a3a3a; --text-faint:#666;
-      --accent:#b0431f; --accent-2:#8a5c00; --accent-soft: rgba(176,67,31,0.08); --ok:#137a4f;
-    }
-    body{ background:#fff; }
-    .status-bar, .search-block, .empty-state, footer, .pdf-btn{ display:none !important; }
-    .person-card{ box-shadow:none; border:1px solid #ccc; }
-    .person-card::before{ display:none; }
-    .slot{ break-inside:avoid; }
-  }
 </style>
 </head>
 <body>
@@ -487,6 +472,7 @@
   <footer>ZION 2026 · Escala gerada a partir da planilha oficial</footer>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 const SUPABASE_URL = 'https://ahqgxacshklspbygnvxy.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFocWd4YWNzaGtsc3BieWdudnh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1NDgyOTEsImV4cCI6MjEwMDEyNDI5MX0.Vip9Sqh5DRCd-5JsrQZ91B3X_NJxtfGAm3e-bmmE2jw';
@@ -695,7 +681,53 @@ function renderResult(person){
     </div>
   `;
   resultEl.classList.add('show');
-  document.getElementById('pdfBtn').addEventListener('click', ()=> window.print());
+  document.getElementById('pdfBtn').addEventListener('click', ()=> downloadPdf(person));
+}
+
+function downloadPdf(person){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const marginLeft = 14;
+  const maxLineWidth = pageWidth - marginLeft*2;
+  let y = 20;
+
+  doc.setFontSize(18);
+  doc.text(person.name, marginLeft, y);
+  y += 7;
+  doc.setFontSize(10);
+  doc.setTextColor(120);
+  doc.text('ZION 2026 - Minha escala', marginLeft, y);
+  doc.setTextColor(0);
+  y += 10;
+
+  const dayKeys = DAY_ORDER.filter(d => person.schedule[d] && person.schedule[d].length);
+
+  if(!dayKeys.length){
+    doc.setFontSize(11);
+    doc.text('Seu horário ainda não foi definido na escala.', marginLeft, y);
+  }
+
+  dayKeys.forEach(day=>{
+    if(y > 275){ doc.addPage(); y = 20; }
+    doc.setFontSize(13);
+    doc.text(day, marginLeft, y);
+    y += 7;
+
+    person.schedule[day].forEach(s=>{
+      const leader = leadersFor(s.activity);
+      const activity = s.activity || 'área a definir';
+      const line = `${s.start} -> ${s.end}   ${activity}` + (leader ? `  (Líder: ${leader})` : '');
+      const wrapped = doc.splitTextToSize(line, maxLineWidth - 4);
+      doc.setFontSize(10.5);
+      if(y + wrapped.length*5 > 285){ doc.addPage(); y = 20; }
+      doc.text(wrapped, marginLeft + 4, y);
+      y += wrapped.length*5 + 2;
+    });
+    y += 5;
+  });
+
+  doc.save(`escala-${norm(person.name).replace(/\s+/g,'-')}.pdf`);
 }
 
 // ---- data loading: cache-first, then network, with offline fallback ----
